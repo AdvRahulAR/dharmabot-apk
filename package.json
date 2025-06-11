@@ -54,7 +54,8 @@
     "react-native-toast-message": "^2.2.0",
     "@react-native-picker/picker": "2.8.1",
     "expo-clipboard": "~6.0.3",
-    "marked": "^13.0.2"
+    "marked": "^13.0.2",
+    "pdfjs-dist": "^4.0.379"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
