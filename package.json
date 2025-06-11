@@ -54,7 +54,9 @@
     "@react-native-picker/picker": "2.8.1",
     "expo-clipboard": "~6.0.3",
     "marked": "^13.0.2",
-    "pdfjs-dist": "^4.0.379"
+    "pdfjs-dist": "^4.0.379",
+    "docx": "^8.5.0",
+    "file-saver": "^2.0.5"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
