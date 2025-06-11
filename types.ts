@@ -89,7 +89,7 @@ export interface ProcessedFile {
   id: string; 
   name: string;
   type: string; 
-  originalFile: File; 
+  originalFile: any; // Changed from File to any for mobile compatibility
   status: 'pending' | 'processing' | 'processed' | 'error';
   textContent?: string; 
   imagePageDataUrls?: string[]; 
