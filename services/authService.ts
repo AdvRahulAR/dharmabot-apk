@@ -1,46 +1,50 @@
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, UserProfileType } from '../types';
 
 const USERS_STORAGE_KEY = 'dharmabotUsers';
 const SESSION_STORAGE_KEY = 'dharmabotUserSession';
 
-const generateUUID = () => crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
+const generateUUID = () => Math.random().toString(36).substring(2, 15);
 
-// Helper to get users from localStorage
-const getUsers = (): User[] => {
-  const usersJson = localStorage.getItem(USERS_STORAGE_KEY);
-  return usersJson ? JSON.parse(usersJson) : [];
+const getUsers = async (): Promise<User[]> => {
+  try {
+    const usersJson = await AsyncStorage.getItem(USERS_STORAGE_KEY);
+    return usersJson ? JSON.parse(usersJson) : [];
+  } catch (error) {
+    console.error('Error loading users:', error);
+    return [];
+  }
 };
 
-// Helper to save users to localStorage
-const saveUsers = (users: User[]) => {
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+const saveUsers = async (users: User[]): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+  } catch (error) {
+    console.error('Error saving users:', error);
+  }
 };
 
-export const registerUser = (
+export const registerUser = async (
   profileType: UserProfileType,
   email: string,
   phone: string,
   passwordOne: string,
   passwordTwo: string
-): { success: boolean; message: string; user?: Omit<User, 'password'> } => {
+): Promise<{ success: boolean; message: string; user?: Omit<User, 'password'> }> => {
   if (passwordOne !== passwordTwo) {
     return { success: false, message: "Passwords do not match." };
   }
   if (passwordOne.length < 6) {
     return { success: false, message: "Password must be at least 6 characters long." };
   }
-  // Basic email validation
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { success: false, message: "Invalid email format." };
   }
-  // Basic phone validation (simple check for numbers and length)
-  if (!/^\d{10,15}$/.test(phone.replace(/\s+/g, ''))) { // Allows 10-15 digits
+  if (!/^\d{10,15}$/.test(phone.replace(/\s+/g, ''))) {
     return { success: false, message: "Invalid phone number format (10-15 digits)." };
   }
 
-
-  const users = getUsers();
+  const users = await getUsers();
   const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
 
   if (existingUser) {
@@ -52,70 +56,75 @@ export const registerUser = (
     profileType,
     email: email.toLowerCase(),
     phone,
-    password: passwordOne, // In a real app, HASH this password
+    password: passwordOne,
   };
 
   users.push(newUser);
-  saveUsers(users);
+  await saveUsers(users);
 
-  // Automatically log in the new user
-  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({ id: newUser.id, email: newUser.email, profileType: newUser.profileType, phone: newUser.phone }));
+  const sessionUser: Omit<User, 'password'> = {
+    id: newUser.id,
+    email: newUser.email,
+    profileType: newUser.profileType,
+    phone: newUser.phone
+  };
   
-  // Return user without password for session
-  const { password, ...userWithoutPassword } = newUser;
-  return { success: true, message: "Registration successful!", user: userWithoutPassword };
+  await AsyncStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionUser));
+  
+  return { success: true, message: "Registration successful!", user: sessionUser };
 };
 
-export const loginUser = (
+export const loginUser = async (
   email: string,
   passwordInput: string
-): { success: boolean; message: string; user?: Omit<User, 'password'> } => {
-  const users = getUsers();
+): Promise<{ success: boolean; message: string; user?: Omit<User, 'password'> }> => {
+  const users = await getUsers();
   const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
 
   if (!user) {
     return { success: false, message: "Invalid email or password." };
   }
 
-  // In a real app, compare hashed passwords
   if (user.password !== passwordInput) {
     return { success: false, message: "Invalid email or password." };
   }
 
-  // Create session
-  const sessionUser: Omit<User, 'password'> = { 
-    id: user.id, 
-    email: user.email, 
+  const sessionUser: Omit<User, 'password'> = {
+    id: user.id,
+    email: user.email,
     profileType: user.profileType,
-    phone: user.phone 
+    phone: user.phone
   };
-  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionUser));
+  
+  await AsyncStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionUser));
   return { success: true, message: "Login successful!", user: sessionUser };
 };
 
-export const logoutUser = (): void => {
-  localStorage.removeItem(SESSION_STORAGE_KEY);
+export const logoutUser = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
+  } catch (error) {
+    console.error('Error logging out:', error);
+  }
 };
 
-export const getCurrentUserSession = (): Omit<User, 'password'> | null => {
-  const sessionJson = localStorage.getItem(SESSION_STORAGE_KEY);
-  if (sessionJson) {
-    try {
+export const getCurrentUserSession = async (): Promise<Omit<User, 'password'> | null> => {
+  try {
+    const sessionJson = await AsyncStorage.getItem(SESSION_STORAGE_KEY);
+    if (sessionJson) {
       const sessionData = JSON.parse(sessionJson);
-      // Optionally verify this session against the users list, though for mock it might be okay
-      // Ensure the parsed data conforms to Omit<User, 'password'>, especially checking for 'phone'
       if (sessionData && typeof sessionData.id === 'string' && typeof sessionData.email === 'string' && typeof sessionData.profileType === 'string' && typeof sessionData.phone === 'string') {
         return sessionData as Omit<User, 'password'>;
       } else {
         console.warn("Stored session data is incomplete. Clearing invalid session.");
-        localStorage.removeItem(SESSION_STORAGE_KEY);
+        await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
         return null;
       }
-    } catch (error) {
-      console.error("Error parsing user session:", error);
-      localStorage.removeItem(SESSION_STORAGE_KEY); // Clear invalid session
-      return null;
     }
+  } catch (error) {
+    console.error("Error parsing user session:", error);
+    await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
+    return null;
   }
   return null;
 };

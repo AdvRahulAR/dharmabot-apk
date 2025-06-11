@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Theme = 'light' | 'dark';
 
@@ -10,35 +11,36 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Initialize theme from localStorage or default to 'dark'
-  const [theme, setTheme] = useState<Theme>(() => {
-    try {
-      const savedTheme = localStorage.getItem('dharmabot-theme') as Theme;
-      return savedTheme || 'dark';
-    } catch {
-      return 'dark';
-    }
-  });
+  const [theme, setTheme] = useState<Theme>('dark');
 
-  // Apply theme to document and save to localStorage
   useEffect(() => {
-    try {
-      localStorage.setItem('dharmabot-theme', theme);
-    } catch (error) {
-      console.warn('Failed to save theme to localStorage:', error);
-    }
+    loadTheme();
+  }, []);
 
-    // Apply or remove dark class on html element
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+  const loadTheme = async () => {
+    try {
+      const savedTheme = await AsyncStorage.getItem('dharmabot-theme') as Theme;
+      if (savedTheme) {
+        setTheme(savedTheme);
+      }
+    } catch (error) {
+      console.warn('Failed to load theme from storage:', error);
     }
-  }, [theme]);
+  };
+
+  const saveTheme = async (newTheme: Theme) => {
+    try {
+      await AsyncStorage.setItem('dharmabot-theme', newTheme);
+    } catch (error) {
+      console.warn('Failed to save theme to storage:', error);
+    }
+  };
 
   const toggleTheme = useCallback(() => {
-    setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
-  }, []);
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    saveTheme(newTheme);
+  }, [theme]);
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
