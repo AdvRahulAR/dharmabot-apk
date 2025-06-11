@@ -7,16 +7,13 @@ import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 
 export default function RootLayout() {
   useFrameworkReady();
+  
   return (
     <SafeAreaProvider>
       <ThemeProvider>
         <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="auth" />
-          <Stack.Screen name="document-drafting" />
-          <Stack.Screen name="voicenote" />
-          <Stack.Screen name="find-lawyer" />
-          <Stack.Screen name="research" />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="auth" options={{ headerShown: false }} />
         </Stack>
         <StatusBar style="auto" />
         <Toast />
